@@ -68,6 +68,12 @@ final class FSVideoCameraView: UIView {
             let totalSeconds = 10.0 //Total Seconds of capture time
             let timeScale: Int32 = 30 //FPS
 
+            if videoOutput.availableVideoCodecTypes.contains(.h264) {
+                // Use the H.264 codec to encode the video.
+                videoOutput.setOutputSettings([AVVideoCodecKey:  
+                    AVVideoCodecType.h264], for: session!)
+            }
+            
             let maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimescale: timeScale)
 
             videoOutput?.maxRecordedDuration = maxDuration
