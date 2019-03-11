@@ -51,6 +51,8 @@ final class FSVideoCameraView: UIView {
 
         guard let session = session else { return }
 
+        
+        
         for device in AVCaptureDevice.devices() {
             if device.position == AVCaptureDevice.Position.back {
                 self.device = device
@@ -65,13 +67,16 @@ final class FSVideoCameraView: UIView {
             session.addInput(videoInput!)
 
             videoOutput = AVCaptureMovieFileOutput()
+            
             let totalSeconds = 10.0 //Total Seconds of capture time
             let timeScale: Int32 = 30 //FPS
 
-            if videoOutput.availableVideoCodecTypes.contains(.h264) {
+            if videoOutput!.availableVideoCodecTypes.contains(.h264) {
                 // Use the H.264 codec to encode the video.
-                videoOutput.setOutputSettings([AVVideoCodecKey:  
-                    AVVideoCodecType.h264], for: session!)
+                
+                let connection = AVCaptureConnection(inputPorts: videoInput!.ports, output: videoOutput!)
+                
+                videoOutput!.setOutputSettings([AVVideoCodecKey:  AVVideoCodecType.h264], for: connection)
             }
             
             let maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimescale: timeScale)
