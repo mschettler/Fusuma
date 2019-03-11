@@ -51,11 +51,10 @@ final class FSVideoCameraView: UIView {
 
         guard let session = session else { return }
 
-        
-        
         for device in AVCaptureDevice.devices() {
             if device.position == AVCaptureDevice.Position.back {
                 self.device = device
+                break
             }
         }
 
@@ -70,18 +69,18 @@ final class FSVideoCameraView: UIView {
             
             let totalSeconds = 10.0 //Total Seconds of capture time
             let timeScale: Int32 = 30 //FPS
-
-            if videoOutput!.availableVideoCodecTypes.contains(.h264) {
-                // Use the H.264 codec to encode the video.
-                videoOutput!.setOutputSettings([AVVideoCodecKey:  AVVideoCodecType.h264], for: videoOutput!.connection(with: AVMediaType.video)!)
-            }
-            
+//
+////            if videoOutput!.availableVideoCodecTypes.contains(.h264) {
+//                // Use the H.264 codec to encode the video.
+//            videoOutput!.setOutputSettings([AVVideoCodecKey:  AVVideoCodecType.h264], for: videoOutput!.connection(with: AVMediaType.video)!)
+////            }
+//
             let maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimescale: timeScale)
 
             videoOutput?.maxRecordedDuration = maxDuration
             // 25 mb
             videoOutput?.minFreeDiskSpaceLimit = 25 * 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
-
+                
             if session.canAddOutput(videoOutput!) {
                 session.addOutput(videoOutput!)
             }
@@ -240,9 +239,40 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         print("started recording to: \(fileURL)")
     }
 
+    func replaceMovURL(u: URL) -> URL {
+        let sU = u.absoluteString
+        let rS = sU.replacingOccurrences(of: ".mov", with: "_c.mp4")
+        return URL(fileURLWithPath: rS)
+    }
+    
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         print("finished recording to: \(outputFileURL)")
-        delegate?.videoFinished(withFileURL: outputFileURL)
+        
+        // These settings will encode using H.264.
+        let preset = AVAssetExportPreset1920x1080
+        let outFileType = AVFileType.mp4
+        
+        let anAsset = AVAsset(url: outputFileURL)
+        
+        AVAssetExportSession.determineCompatibility(ofExportPreset: preset, with: anAsset, outputFileType: outFileType, completionHandler: { (isCompatible) in
+            if !isCompatible {
+                return
+            }
+            guard let export = AVAssetExportSession(asset: anAsset, presetName: preset) else {
+                return
+            }
+            
+            let newurl = self.replaceMovURL(u: outputFileURL)
+            
+            export.outputFileType = outFileType
+            export.outputURL = newurl
+            export.exportAsynchronously { () -> Void in
+                // Handle export results.
+                 self.delegate?.videoFinished(withFileURL: newurl)
+            }
+        })
+        
+       
     }
 }
 
