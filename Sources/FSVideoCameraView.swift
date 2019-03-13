@@ -240,37 +240,119 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
     }
 
     func replaceMovURL(u: URL) -> URL {
-        let sU = u.absoluteString
-        let rS = sU.replacingOccurrences(of: ".mov", with: "_c.mp4")
-        return URL(fileURLWithPath: rS)
+        return u.deletingPathExtension().appendingPathExtension("mp4")
+    }
+    func _getDataFor(_ item: AVPlayerItem, completion: @escaping (URL?) -> ()) {
+        
+        guard item.asset.isExportable else {
+            completion(nil)
+            return
+        }
+        
+        let composition = AVMutableComposition()
+        let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+//        let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+        
+        let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first!
+//        let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
+        do {
+            try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: CMTimeMakeWithSeconds(10, preferredTimescale: Int32(NSEC_PER_SEC))), of: sourceVideoTrack, at: CMTime.zero)
+//            try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.duration), of: sourceAudioTrack, at: CMTime.zero)
+        } catch let error1 as NSError {
+            print(error1)
+//            error = error1
+            completion(nil)
+            return
+        } catch {
+            print(error)
+            completion(nil)
+            return
+        }
+        
+        // FIXME audio?
+        
+        let compatiblePresets = AVAssetExportSession.exportPresets(compatibleWith: composition)
+        var preset: String = AVAssetExportPresetPassthrough
+        if compatiblePresets.contains(AVAssetExportPreset1920x1080) { preset = AVAssetExportPreset1920x1080 }
+        
+        guard
+            let exportSession = AVAssetExportSession(asset: composition, presetName: preset),
+            exportSession.supportedFileTypes.contains(AVFileType.mp4) else {
+                completion(nil)
+                return
+        }
+        
+        var tempFileUrl = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("temp_video_data.mp4", isDirectory: false)
+        tempFileUrl = URL(fileURLWithPath: tempFileUrl.path)
+        
+        exportSession.outputURL = tempFileUrl
+        exportSession.outputFileType = AVFileType.mp4
+        let startTime = CMTimeMake(value: 0, timescale: 1)
+        let timeRange = CMTimeRangeMake(start: startTime, duration: item.duration)
+        exportSession.timeRange = timeRange
+        
+        do { // delete old video
+            try FileManager.default.removeItem(at: tempFileUrl)
+        } catch { print(error.localizedDescription) }
+        
+        exportSession.exportAsynchronously {
+            print("\(tempFileUrl)")
+            print("\(String(describing: exportSession.error))")
+            _ = try? Data(contentsOf: tempFileUrl)
+//            _ = try? FileManager.default.removeItem(at: tempFileUrl)
+            completion(tempFileUrl)
+        }
     }
     
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         print("finished recording to: \(outputFileURL)")
         
-        // These settings will encode using H.264.
-        let preset = AVAssetExportPreset1920x1080
-        let outFileType = AVFileType.mp4
+        let asset = AVURLAsset(url: outputFileURL)
+        let item = AVPlayerItem(asset: asset)
         
-        let anAsset = AVAsset(url: outputFileURL)
-        
-        AVAssetExportSession.determineCompatibility(ofExportPreset: preset, with: anAsset, outputFileType: outFileType, completionHandler: { (isCompatible) in
-            if !isCompatible {
-                return
-            }
-            guard let export = AVAssetExportSession(asset: anAsset, presetName: preset) else {
-                return
+        self._getDataFor(item, completion: ({ (url) in
+            
+            
+            DispatchQueue.main.async {
+                self.delegate?.videoFinished(withFileURL: url!)
             }
             
-            let newurl = self.replaceMovURL(u: outputFileURL)
             
-            export.outputFileType = outFileType
-            export.outputURL = newurl
-            export.exportAsynchronously { () -> Void in
-                // Handle export results.
-                 self.delegate?.videoFinished(withFileURL: newurl)
-            }
-        })
+        }))
+        
+
+//        // These settings will encode using H.264.
+//        let preset = AVAssetExportPreset1920x1080
+//        let outFileType = AVFileType.mp4
+//
+//        let anAsset = AVAsset(url: outputFileURL)
+//
+//        AVAssetExportSession.determineCompatibility(ofExportPreset: preset, with: anAsset, outputFileType: outFileType, completionHandler: { (isCompatible) in
+//            if !isCompatible {
+//                return
+//            }
+//            guard let export = AVAssetExportSession(asset: anAsset, presetName: preset) else {
+//                return
+//            }
+//
+//            let newurl = self.replaceMovURL(u: outputFileURL)
+//
+//            DispatchQueue.main.async {
+//
+//                export.outputFileType = outFileType
+//                export.outputURL = newurl
+//                export.exportAsynchronously { () -> Void in
+//                    // Handle export results.
+//                    if let err = export.error {
+//
+//                    } else {
+//                        DispatchQueue.main.async {
+//                             self.delegate?.videoFinished(withFileURL: newurl)
+//                        }
+//                    }
+//                }
+//            }
+//        })
         
        
     }
