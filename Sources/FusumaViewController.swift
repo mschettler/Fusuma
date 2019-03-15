@@ -106,7 +106,7 @@ public struct ImageMetadata {
 
     public var cropHeightRatio: CGFloat = 1
     public var allowMultipleSelection: Bool = false
-    public var photoSelectionLimit: Int = 1
+    public var photoSelectionLimit: Int = 10
     public var autoSelectFirstImage: Bool = false
 
     private var mode: FusumaMode = .library
