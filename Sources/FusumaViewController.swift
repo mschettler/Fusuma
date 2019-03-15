@@ -42,6 +42,7 @@ public protocol FusumaDelegate: class {
     func fusumaClosed()
     func fusumaWillClosed()
     func fusumaLimitReached()
+    func skipFusumaForTextOnly()
 }
 
 public extension FusumaDelegate {
@@ -51,6 +52,7 @@ public extension FusumaDelegate {
     func fusumaClosed() {}
     func fusumaWillClosed() {}
     func fusumaLimitReached() {}
+    func skipFusumaForTextOnly() {}
 }
 
 public var fusumaBaseTintColor   = UIColor.hex("#c9c7c8", alpha: 1.0)
@@ -109,6 +111,8 @@ public struct ImageMetadata {
 
     private var mode: FusumaMode = .library
 
+    var skipButton: UIBarButtonItem?
+
     public var availableModes: [FusumaMode] = [.library, .camera]
     public var cameraPosition = AVCaptureDevice.Position.back
 
@@ -141,8 +145,23 @@ public struct ImageMetadata {
         }
     }
 
+    func initSkipButton() {
+        if self.skipButton == nil {
+            self.skipButton = UIBarButtonItem(title: "Skip", style: .plain, target: self, action: #selector(skipButtonPressed))
+        }
+
+        self.navigationItem.rightBarButtonItem = skipButton
+    }
+
+    @objc func skipButtonPressed() {
+        delegate?.skipFusumaForTextOnly()
+        self.navigationItem.rightBarButtonItem = nil
+    }
+
     override public func viewDidLoad() {
         super.viewDidLoad()
+
+        initSkipButton()
 
         self.view.backgroundColor = fusumaBackgroundColor
 
@@ -258,7 +277,7 @@ public struct ImageMetadata {
             cameraButton.removeFromSuperview()
             videoButton.removeFromSuperview()
         }
-        
+
         if availableModes.contains(.camera) {
             if fusumaCropImage {
                 let heightRatio = getCropHeightRatio()
@@ -270,10 +289,10 @@ public struct ImageMetadata {
                     attribute: NSLayoutConstraint.Attribute.width,
                     multiplier: heightRatio,
                     constant: 0)
-                
+
                 cameraView.fullAspectRatioConstraint.isActive     = false
                 cameraView.croppedAspectRatioConstraint?.isActive = true
-                
+
             } else {
                 cameraView.fullAspectRatioConstraint.isActive     = true
                 cameraView.croppedAspectRatioConstraint?.isActive = false
