@@ -66,7 +66,15 @@ final class FSVideoCameraView: UIView {
             session.addInput(videoInput!)
 
             videoOutput = AVCaptureMovieFileOutput()
-            
+
+                   // add audio
+               for de in AVCaptureDevice.devicesWithMediaType(AVMediaTypeAudio) {
+                    let de = device as? AVCaptureDevice
+                    var audioInput = try! AVCaptureDeviceInput(device: de)
+                    session.addInput(audioInput)
+                }
+                   
+                   
             let totalSeconds = 10.0 //Total Seconds of capture time
             let timeScale: Int32 = 30 //FPS
 //
