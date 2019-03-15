@@ -67,12 +67,16 @@ final class FSVideoCameraView: UIView {
 
             videoOutput = AVCaptureMovieFileOutput()
 
-            // add audio
-            if let audioInput = try? AVCaptureDeviceInput(device: device) {
-                session.addInput(audioInput)
+            // add audio conditionally
+            if let audioDevice = AVCaptureDevice.default(for: .audio) {
+                if let audioInput = try? AVCaptureDeviceInput(device: audioDevice) {
+                    if session.canAddInput(audioInput) {
+                        session.addInput(audioInput)
+                    }
+                }
             }
 
-                   
+
             let totalSeconds = 10.0 //Total Seconds of capture time
             let timeScale: Int32 = 30 //FPS
 //
@@ -86,7 +90,7 @@ final class FSVideoCameraView: UIView {
             videoOutput?.maxRecordedDuration = maxDuration
             // 25 mb
             videoOutput?.minFreeDiskSpaceLimit = 25 * 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
-                
+
             if session.canAddOutput(videoOutput!) {
                 session.addOutput(videoOutput!)
             }
@@ -249,16 +253,16 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         return u.deletingPathExtension().appendingPathExtension("mp4")
     }
     func _getDataFor(_ item: AVPlayerItem, completion: @escaping (URL?) -> ()) {
-        
+
         guard item.asset.isExportable else {
             completion(nil)
             return
         }
-        
+
         let composition = AVMutableComposition()
         let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
 //        let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
-        
+
         let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first!
 //        let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
         do {
@@ -274,33 +278,33 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
             completion(nil)
             return
         }
-        
+
         // FIXME audio?
-        
+
         let compatiblePresets = AVAssetExportSession.exportPresets(compatibleWith: composition)
         var preset: String = AVAssetExportPresetPassthrough
         if compatiblePresets.contains(AVAssetExportPreset1920x1080) { preset = AVAssetExportPreset1920x1080 }
-        
+
         guard
             let exportSession = AVAssetExportSession(asset: composition, presetName: preset),
             exportSession.supportedFileTypes.contains(AVFileType.mp4) else {
                 completion(nil)
                 return
         }
-        
+
         var tempFileUrl = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("temp_video_data.mp4", isDirectory: false)
         tempFileUrl = URL(fileURLWithPath: tempFileUrl.path)
-        
+
         exportSession.outputURL = tempFileUrl
         exportSession.outputFileType = AVFileType.mp4
         let startTime = CMTimeMake(value: 0, timescale: 1)
         let timeRange = CMTimeRangeMake(start: startTime, duration: item.duration)
         exportSession.timeRange = timeRange
-        
+
         do { // delete old video
             try FileManager.default.removeItem(at: tempFileUrl)
         } catch { print(error.localizedDescription) }
-        
+
         exportSession.exportAsynchronously {
             print("\(tempFileUrl)")
             print("\(String(describing: exportSession.error))")
@@ -309,23 +313,23 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
             completion(tempFileUrl)
         }
     }
-    
+
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         print("finished recording to: \(outputFileURL)")
-        
+
         let asset = AVURLAsset(url: outputFileURL)
         let item = AVPlayerItem(asset: asset)
-        
+
         self._getDataFor(item, completion: ({ (url) in
-            
-            
+
+
             DispatchQueue.main.async {
                 self.delegate?.videoFinished(withFileURL: url!)
             }
-            
-            
+
+
         }))
-        
+
 
 //        // These settings will encode using H.264.
 //        let preset = AVAssetExportPreset1920x1080
@@ -359,8 +363,8 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
 //                }
 //            }
 //        })
-        
-       
+
+
     }
 }
 
