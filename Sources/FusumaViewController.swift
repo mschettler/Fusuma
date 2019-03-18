@@ -455,9 +455,8 @@ public struct ImageMetadata {
                 metaData.append(self.getMetaData(asset: asset))
 
                 if asset == self.albumView.selectedAssets.last {
-                    self.doDismiss {
-                        self.delegate?.fusumaMultipleImageSelected(images, source: self.mode, metaData: metaData)
-                    }
+                    // am using this in a navigationcontroller, don't dismiss
+                    self.delegate?.fusumaMultipleImageSelected(images, source: self.mode, metaData: metaData)
                 }
             }
         }
