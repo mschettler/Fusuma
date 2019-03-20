@@ -261,13 +261,13 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
 
         let composition = AVMutableComposition()
         let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
-//        let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+        let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
 
         let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first!
-//        let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
+        let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
         do {
-            try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: CMTimeMakeWithSeconds(10, preferredTimescale: Int32(NSEC_PER_SEC))), of: sourceVideoTrack, at: CMTime.zero)
-//            try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.duration), of: sourceAudioTrack, at: CMTime.zero)
+            try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceVideoTrack, at: CMTime.zero)
+            try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceAudioTrack, at: CMTime.zero)
         } catch let error1 as NSError {
             print(error1)
 //            error = error1
