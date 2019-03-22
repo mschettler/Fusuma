@@ -21,6 +21,8 @@ final class FSVideoCameraView: UIView {
 
     weak var delegate: FSVideoCameraViewDelegate? = nil
 
+    var recordedOrientation = UIDeviceOrientation.portrait
+    
     var session: AVCaptureSession?
     var device: AVCaptureDevice?
     var videoInput: AVCaptureDeviceInput?
@@ -88,8 +90,8 @@ final class FSVideoCameraView: UIView {
             let maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimescale: timeScale)
 
             videoOutput?.maxRecordedDuration = maxDuration
-            // 25 mb
-            videoOutput?.minFreeDiskSpaceLimit = 25 * 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
+            // 35 mb
+            videoOutput?.minFreeDiskSpaceLimit = 35 * 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
 
             if session.canAddOutput(videoOutput!) {
                 session.addOutput(videoOutput!)
@@ -244,9 +246,37 @@ final class FSVideoCameraView: UIView {
     }
 }
 
+extension AVAsset {
+    
+    var g_size: CGSize {
+        return tracks(withMediaType: AVMediaType.video).first?.naturalSize ?? .zero
+    }
+    
+    var g_orientation: UIInterfaceOrientation {
+        
+        guard let transform = tracks(withMediaType: AVMediaType.video).first?.preferredTransform else {
+            return .portrait
+        }
+        
+        switch (transform.tx, transform.ty) {
+        case (0, 0):
+            return .landscapeRight
+        case (g_size.width, g_size.height):
+            return .landscapeLeft
+        case (0, g_size.width):
+            return .portraitUpsideDown
+        default:
+            return .portrait
+        }
+    }
+}
+
 extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
+    
+    
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         print("started recording to: \(fileURL)")
+        recordedOrientation = UIDevice.current.orientation
     }
 
     func replaceMovURL(u: URL) -> URL {
@@ -265,6 +295,7 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
 
         let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first!
         let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
+        
         do {
             try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceVideoTrack, at: CMTime.zero)
             try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceAudioTrack, at: CMTime.zero)
@@ -279,8 +310,18 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
             return
         }
 
-        // FIXME audio?
+        // rotate if necessary
+        if recordedOrientation == .portrait || recordedOrientation == .portraitUpsideDown {
+            let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2));
+            compositionVideoTrack!.preferredTransform = rotationTransform;
+        } else if recordedOrientation == .landscapeRight {
+            let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
+            compositionVideoTrack!.preferredTransform = rotationTransform;
 
+        }
+        
+        
+        
         let compatiblePresets = AVAssetExportSession.exportPresets(compatibleWith: composition)
         var preset: String = AVAssetExportPresetPassthrough
         if compatiblePresets.contains(AVAssetExportPreset1920x1080) { preset = AVAssetExportPreset1920x1080 }
@@ -321,12 +362,12 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         let item = AVPlayerItem(asset: asset)
 
         self._getDataFor(item, completion: ({ (url) in
-
-
+            
             DispatchQueue.main.async {
-                self.delegate?.videoFinished(withFileURL: url!)
+                if let u = url {
+                    self.delegate?.videoFinished(withFileURL: u)
+                }
             }
-
 
         }))
 
