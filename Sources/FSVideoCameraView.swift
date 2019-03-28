@@ -279,9 +279,6 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         recordedOrientation = UIDevice.current.orientation
     }
 
-    func replaceMovURL(u: URL) -> URL {
-        return u.deletingPathExtension().appendingPathExtension("mp4")
-    }
     func _getDataFor(_ item: AVPlayerItem, completion: @escaping (URL?) -> ()) {
 
         guard item.asset.isExportable else {
@@ -293,23 +290,37 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
         let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
 
-        let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first!
-        let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
-        
-        do {
-            try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceVideoTrack, at: CMTime.zero)
-            try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceAudioTrack, at: CMTime.zero)
-        } catch let error1 as NSError {
-            print(error1)
-//            error = error1
-            completion(nil)
-            return
-        } catch {
-            print(error)
-            completion(nil)
-            return
-        }
+        if let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first {
+            
+            do {
+                try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceVideoTrack, at: CMTime.zero)
+            } catch let error1 as NSError {
+                print(error1)
+                completion(nil)
+                return
+            } catch {
+                print(error)
+                completion(nil)
+                return
+            }
 
+        }
+        
+        if let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first {
+            do {
+                try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceAudioTrack, at: CMTime.zero)
+            } catch let error1 as NSError {
+                print(error1)
+                completion(nil)
+                return
+            } catch {
+                print(error)
+                completion(nil)
+                return
+            }
+
+        }
+        
         // rotate if necessary
         if recordedOrientation == .portrait || recordedOrientation == .portraitUpsideDown {
             let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2));
@@ -320,11 +331,10 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
 
         }
         
-        
-        
         let compatiblePresets = AVAssetExportSession.exportPresets(compatibleWith: composition)
         var preset: String = AVAssetExportPresetPassthrough
         if compatiblePresets.contains(AVAssetExportPreset1920x1080) { preset = AVAssetExportPreset1920x1080 }
+        if compatiblePresets.contains(AVAssetExportPreset1280x720) { preset = AVAssetExportPreset1280x720 }
 
         guard
             let exportSession = AVAssetExportSession(asset: composition, presetName: preset),
@@ -371,39 +381,6 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
 
         }))
 
-
-//        // These settings will encode using H.264.
-//        let preset = AVAssetExportPreset1920x1080
-//        let outFileType = AVFileType.mp4
-//
-//        let anAsset = AVAsset(url: outputFileURL)
-//
-//        AVAssetExportSession.determineCompatibility(ofExportPreset: preset, with: anAsset, outputFileType: outFileType, completionHandler: { (isCompatible) in
-//            if !isCompatible {
-//                return
-//            }
-//            guard let export = AVAssetExportSession(asset: anAsset, presetName: preset) else {
-//                return
-//            }
-//
-//            let newurl = self.replaceMovURL(u: outputFileURL)
-//
-//            DispatchQueue.main.async {
-//
-//                export.outputFileType = outFileType
-//                export.outputURL = newurl
-//                export.exportAsynchronously { () -> Void in
-//                    // Handle export results.
-//                    if let err = export.error {
-//
-//                    } else {
-//                        DispatchQueue.main.async {
-//                             self.delegate?.videoFinished(withFileURL: newurl)
-//                        }
-//                    }
-//                }
-//            }
-//        })
 
 
     }
