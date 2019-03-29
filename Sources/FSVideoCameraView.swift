@@ -368,20 +368,22 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         print("finished recording to: \(outputFileURL)")
 
+        // alert delegate that we finished the mov
+        self.delegate?.videoFinished(withFileURL: outputFileURL)
+        
         let asset = AVURLAsset(url: outputFileURL)
         let item = AVPlayerItem(asset: asset)
-
+        
         self._getDataFor(item, completion: ({ (url) in
             
             DispatchQueue.main.async {
                 if let u = url {
+                    // alert delegate we finished the conversion
                     self.delegate?.videoFinished(withFileURL: u)
                 }
             }
 
         }))
-
-
 
     }
 }
