@@ -188,7 +188,7 @@ public struct ImageMetadata {
         closeButton.setImage(skipImage?.withRenderingMode(.alwaysTemplate), for: .highlighted)
         doneButton.setImage(checkImage?.withRenderingMode(.alwaysTemplate), for: .highlighted)
         
-        doneButton.addTarget(self, action: #selector(skipButtonPressed), for: .touchUpInside)
+        closeButton.addTarget(self, action: #selector(skipButtonPressed), for: .touchUpInside)
         
         photoLibraryViewerContainer.addSubview(albumView)
         cameraShotContainer.addSubview(cameraView)
