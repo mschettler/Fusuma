@@ -287,11 +287,10 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         }
 
         let composition = AVMutableComposition()
-        let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
-        let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
 
         if let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first {
-            
+            let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+
             do {
                 try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceVideoTrack, at: CMTime.zero)
             } catch let error1 as NSError {
@@ -304,9 +303,21 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
                 return
             }
 
+
+            // rotate if necessary
+            if recordedOrientation == .portrait || recordedOrientation == .portraitUpsideDown {
+                let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2));
+                compositionVideoTrack!.preferredTransform = rotationTransform;
+            } else if recordedOrientation == .landscapeRight {
+                let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
+                compositionVideoTrack!.preferredTransform = rotationTransform;
+
+            }
         }
         
         if let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first {
+            let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+
             do {
                 try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceAudioTrack, at: CMTime.zero)
             } catch let error1 as NSError {
@@ -320,16 +331,7 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
             }
 
         }
-        
-        // rotate if necessary
-        if recordedOrientation == .portrait || recordedOrientation == .portraitUpsideDown {
-            let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2));
-            compositionVideoTrack!.preferredTransform = rotationTransform;
-        } else if recordedOrientation == .landscapeRight {
-            let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
-            compositionVideoTrack!.preferredTransform = rotationTransform;
 
-        }
         
         let compatiblePresets = AVAssetExportSession.exportPresets(compatibleWith: composition)
         var preset: String = AVAssetExportPresetPassthrough
