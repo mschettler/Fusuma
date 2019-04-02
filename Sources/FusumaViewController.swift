@@ -513,8 +513,11 @@ extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVid
     }
 
     func videoFinished(withFileURL fileURL: URL) {
+
         delegate?.fusumaVideoCompleted(withFileURL: fileURL)
-        doDismiss(completion: nil)
+        if fileURL.absoluteString != "file:///N/A" {
+            doDismiss(completion: nil)
+        }
     }
 
 }

@@ -21,6 +21,8 @@ final class FSVideoCameraView: UIView {
 
     weak var delegate: FSVideoCameraViewDelegate? = nil
 
+    var recordedOrientation = UIDeviceOrientation.portrait
+    
     var session: AVCaptureSession?
     var device: AVCaptureDevice?
     var videoInput: AVCaptureDeviceInput?
@@ -88,8 +90,8 @@ final class FSVideoCameraView: UIView {
             let maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimescale: timeScale)
 
             videoOutput?.maxRecordedDuration = maxDuration
-            // 25 mb
-            videoOutput?.minFreeDiskSpaceLimit = 25 * 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
+            // 35 mb
+            videoOutput?.minFreeDiskSpaceLimit = 35 * 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
 
             if session.canAddOutput(videoOutput!) {
                 session.addOutput(videoOutput!)
@@ -244,14 +246,39 @@ final class FSVideoCameraView: UIView {
     }
 }
 
+extension AVAsset {
+    
+    var g_size: CGSize {
+        return tracks(withMediaType: AVMediaType.video).first?.naturalSize ?? .zero
+    }
+    
+    var g_orientation: UIInterfaceOrientation {
+        
+        guard let transform = tracks(withMediaType: AVMediaType.video).first?.preferredTransform else {
+            return .portrait
+        }
+        
+        switch (transform.tx, transform.ty) {
+        case (0, 0):
+            return .landscapeRight
+        case (g_size.width, g_size.height):
+            return .landscapeLeft
+        case (0, g_size.width):
+            return .portraitUpsideDown
+        default:
+            return .portrait
+        }
+    }
+}
+
 extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
+    
+    
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         print("started recording to: \(fileURL)")
+        recordedOrientation = UIDevice.current.orientation
     }
 
-    func replaceMovURL(u: URL) -> URL {
-        return u.deletingPathExtension().appendingPathExtension("mp4")
-    }
     func _getDataFor(_ item: AVPlayerItem, completion: @escaping (URL?) -> ()) {
 
         guard item.asset.isExportable else {
@@ -260,30 +287,56 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         }
 
         let composition = AVMutableComposition()
-        let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
-//        let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
 
-        let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first!
-//        let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first!
-        do {
-            try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: CMTimeMakeWithSeconds(10, preferredTimescale: Int32(NSEC_PER_SEC))), of: sourceVideoTrack, at: CMTime.zero)
-//            try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.duration), of: sourceAudioTrack, at: CMTime.zero)
-        } catch let error1 as NSError {
-            print(error1)
-//            error = error1
-            completion(nil)
-            return
-        } catch {
-            print(error)
-            completion(nil)
-            return
+        if let sourceVideoTrack = item.asset.tracks(withMediaType: AVMediaType.video).first {
+            let compositionVideoTrack = composition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+
+            do {
+                try compositionVideoTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceVideoTrack, at: CMTime.zero)
+            } catch let error1 as NSError {
+                print(error1)
+                completion(nil)
+                return
+            } catch {
+                print(error)
+                completion(nil)
+                return
+            }
+
+
+            // rotate if necessary
+            if recordedOrientation == .portrait || recordedOrientation == .portraitUpsideDown {
+                let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2));
+                compositionVideoTrack!.preferredTransform = rotationTransform;
+            } else if recordedOrientation == .landscapeRight {
+                let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
+                compositionVideoTrack!.preferredTransform = rotationTransform;
+
+            }
+        }
+        
+        if let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first {
+            let compositionAudioTrack = composition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: CMPersistentTrackID(kCMPersistentTrackID_Invalid))
+
+            do {
+                try compositionAudioTrack!.insertTimeRange(CMTimeRangeMake(start: CMTime.zero, duration: item.asset.duration), of: sourceAudioTrack, at: CMTime.zero)
+            } catch let error1 as NSError {
+                print(error1)
+                completion(nil)
+                return
+            } catch {
+                print(error)
+                completion(nil)
+                return
+            }
+
         }
 
-        // FIXME audio?
-
+        
         let compatiblePresets = AVAssetExportSession.exportPresets(compatibleWith: composition)
         var preset: String = AVAssetExportPresetPassthrough
         if compatiblePresets.contains(AVAssetExportPreset1920x1080) { preset = AVAssetExportPreset1920x1080 }
+        if compatiblePresets.contains(AVAssetExportPreset1280x720) { preset = AVAssetExportPreset1280x720 }
 
         guard
             let exportSession = AVAssetExportSession(asset: composition, presetName: preset),
@@ -320,50 +373,28 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         let asset = AVURLAsset(url: outputFileURL)
         let item = AVPlayerItem(asset: asset)
 
+
+        if asset.duration.seconds < 1.0 {
+            // this video is too short
+//            Drop.down("Video was too short. Please try again", state: .error)
+            self.delegate?.videoFinished(withFileURL: URL(fileURLWithPath: "N/A"))
+            return
+        }
+
+        // alert delegate that we finished the mov
+        self.delegate?.videoFinished(withFileURL: outputFileURL)
+
+
         self._getDataFor(item, completion: ({ (url) in
-
-
+            
             DispatchQueue.main.async {
-                self.delegate?.videoFinished(withFileURL: url!)
+                if let u = url {
+                    // alert delegate we finished the conversion
+                    self.delegate?.videoFinished(withFileURL: u)
+                }
             }
 
-
         }))
-
-
-//        // These settings will encode using H.264.
-//        let preset = AVAssetExportPreset1920x1080
-//        let outFileType = AVFileType.mp4
-//
-//        let anAsset = AVAsset(url: outputFileURL)
-//
-//        AVAssetExportSession.determineCompatibility(ofExportPreset: preset, with: anAsset, outputFileType: outFileType, completionHandler: { (isCompatible) in
-//            if !isCompatible {
-//                return
-//            }
-//            guard let export = AVAssetExportSession(asset: anAsset, presetName: preset) else {
-//                return
-//            }
-//
-//            let newurl = self.replaceMovURL(u: outputFileURL)
-//
-//            DispatchQueue.main.async {
-//
-//                export.outputFileType = outFileType
-//                export.outputURL = newurl
-//                export.exportAsynchronously { () -> Void in
-//                    // Handle export results.
-//                    if let err = export.error {
-//
-//                    } else {
-//                        DispatchQueue.main.async {
-//                             self.delegate?.videoFinished(withFileURL: newurl)
-//                        }
-//                    }
-//                }
-//            }
-//        })
-
 
     }
 }
