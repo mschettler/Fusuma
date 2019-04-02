@@ -368,12 +368,21 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
         print("finished recording to: \(outputFileURL)")
 
-        // alert delegate that we finished the mov
-        self.delegate?.videoFinished(withFileURL: outputFileURL)
-        
         let asset = AVURLAsset(url: outputFileURL)
         let item = AVPlayerItem(asset: asset)
-        
+
+
+        if asset.duration.seconds < 1.0 {
+            // this video is too short
+//            Drop.down("Video was too short. Please try again", state: .error)
+            self.delegate?.videoFinished(withFileURL: URL(fileURLWithPath: "N/A"))
+            return
+        }
+
+        // alert delegate that we finished the mov
+        self.delegate?.videoFinished(withFileURL: outputFileURL)
+
+
         self._getDataFor(item, completion: ({ (url) in
             
             DispatchQueue.main.async {
