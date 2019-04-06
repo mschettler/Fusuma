@@ -412,6 +412,7 @@ public struct ImageMetadata {
     private func requestImage(with asset: PHAsset, cropRect: CGRect, completion: @escaping (PHAsset, UIImage) -> Void) {
         DispatchQueue.global(qos: .default).async(execute: {
             let options = PHImageRequestOptions()
+            options.isSynchronous = true
             options.deliveryMode = .highQualityFormat
             options.isNetworkAccessAllowed = true
             options.normalizedCropRect = cropRect
@@ -436,7 +437,9 @@ public struct ImageMetadata {
 
     private func fusumaDidFinishInMultipleMode() {
         guard let view = albumView.imageCropView else { return }
-
+        self.dismiss(animated: true) {
+            self.delegate?.fusumaMultipleImageSelected(self.albumView.selectedImages, source: self.mode)
+        }
         let normalizedX = view.contentOffset.x / view.contentSize.width
         let normalizedY = view.contentOffset.y / view.contentSize.height
         let normalizedWidth  = view.frame.width / view.contentSize.width
