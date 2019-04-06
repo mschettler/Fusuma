@@ -81,34 +81,37 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
                 }
             }
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
 
-        if let device = device, let _videoInput = try? AVCaptureDeviceInput(device: device) {
-            videoInput = _videoInput
-            session.addInput(videoInput!)
+            if let device = self.device, let _videoInput = try? AVCaptureDeviceInput(device: device) {
+                self.videoInput = _videoInput
+                session.addInput(self.videoInput!)
 
-            imageOutput = AVCaptureStillImageOutput()
+                self.imageOutput = AVCaptureStillImageOutput()
 
-            session.addOutput(imageOutput!)
+                session.addOutput(self.imageOutput!)
 
-            videoLayer = AVCaptureVideoPreviewLayer(session: session)
-            videoLayer?.frame = previewViewContainer.bounds
-            videoLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
+                self.videoLayer = AVCaptureVideoPreviewLayer(session: session)
+                self.videoLayer?.frame = self.previewViewContainer.bounds
+                self.videoLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
 
-            previewViewContainer.layer.addSublayer(videoLayer!)
+                self.previewViewContainer.layer.addSublayer(self.videoLayer!)
 
-            session.sessionPreset = AVCaptureSession.Preset.photo
+                session.sessionPreset = AVCaptureSession.Preset.photo
 
-            session.startRunning()
+                session.startRunning()
 
-            // Focus View
-            focusView = UIView(frame: CGRect(x: 0, y: 0, width: 90, height: 90))
-            let tapRecognizer = UITapGestureRecognizer(target: self, action:#selector(FSCameraView.focus(_:)))
-            tapRecognizer.delegate = self
-            previewViewContainer.addGestureRecognizer(tapRecognizer)
+                // Focus View
+                self.focusView = UIView(frame: CGRect(x: 0, y: 0, width: 90, height: 90))
+                let tapRecognizer = UITapGestureRecognizer(target: self, action:#selector(FSCameraView.focus(_:)))
+                tapRecognizer.delegate = self
+                self.previewViewContainer.addGestureRecognizer(tapRecognizer)
+            }
+
+            self.flashConfiguration()
+            self.startCamera()
+
         }
-
-        flashConfiguration()
-        startCamera()
 
         NotificationCenter.default.addObserver(self, selector: #selector(FSCameraView.willEnterForegroundNotification(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
 
