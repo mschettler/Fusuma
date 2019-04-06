@@ -237,10 +237,11 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
 
         let asset = images[(indexPath as NSIndexPath).item]
         if let selectionNumber = self.selectedRows[indexPath.row] {
-            if !allowMultipleSelection {
+            if self.selectedRows.count == 1 {
                 cell.counterLabel?.text = "✔️"
             } else {
                 cell.counterLabel?.text = "\(selectionNumber)"
+
             }
             cell.selectedLayer.frame = self.bounds
             cell.layer.addSublayer(cell.selectedLayer)
@@ -275,7 +276,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         let width = (collectionView.frame.width - 3) / 4
         return CGSize(width: width, height: width)
     }
-    
+
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if !allowMultipleSelection {
@@ -283,13 +284,13 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
             selectedImages.removeAll()
             selectedAssets.removeAll()
         }
-        
+
         // detect de-selection
         if selectedRows[indexPath.row] != nil {
             self.removeDataAtIndexPath(indexPath)
             return
         }
-        
+
         var asset: PHAsset?
 
         // if the photoselection limit exists && if adding another image won't break the photoselectionlimit
@@ -300,7 +301,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
             changeImage(images[(indexPath as NSIndexPath).row])
 
             imageCropView.changeScrollable(true)
-            
+
             imageCropViewConstraintTop.constant = imageCropViewOriginalConstraintTop
             collectionViewConstraintHeight.constant = self.frame.height - imageCropViewOriginalConstraintTop - imageCropViewContainer.frame.height
 
@@ -311,16 +312,16 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
                            completion: nil)
 
             dragDirection = Direction.up
-            
+
             // in a valid condition to submit data, because content was just added
             delegate?.albumShouldEnableDoneButton(isEnabled: true)
-            
+
             collectionView.scrollToItem(at: indexPath, at: .top, animated: true)
         } else {
             delegate?.albumbSelectionLimitReached()
             collectionView.deselectItem(at: indexPath, animated: true)
         }
-        
+
         // set the badge for the cell
         if let asset = asset {
             if let selectedAssetIndex = self.selectedAssets.firstIndex(of: asset) {
@@ -332,36 +333,36 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
                 }
             }
         }
-        
+
         self.collectionView.reloadData()
     }
-    
+
     func removeDataAtIndexPath(_ indexPath: IndexPath) {
         let asset = images[(indexPath as NSIndexPath).item]
         let selectedAsset = selectedAssets.enumerated().filter ({ $1 == asset }).first
-        
+
         if let selected = selectedAsset {
             selectedImages.remove(at: selected.offset)
             selectedAssets.remove(at: selected.offset)
         }
-        
+
         if selectedImages.count > 0 {
             delegate?.albumShouldEnableDoneButton(isEnabled: true)
         } else {
             delegate?.albumShouldEnableDoneButton(isEnabled: false)
         }
-        
+
         // remove badge
         let numToRemove = selectedRows[indexPath.row]!
         self.selectedRows.removeValue(forKey: indexPath.row)
-        
+
         // decrement the nums that were larger
         for (row, selectionOrder) in selectedRows {
             if (selectionOrder > numToRemove) {
                 self.selectedRows[row] = self.selectedRows[row]! - 1
             }
         }
-        
+
         self.collectionView.reloadData()
     }
 
