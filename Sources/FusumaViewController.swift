@@ -211,7 +211,9 @@ public struct ImageMetadata {
             fatalError("the variable of availableModes should have unique elements.")
         }
 
+//        changeMode(availableModes[1], isForced: true)
         changeMode(availableModes[0], isForced: true)
+
 
         var sortedButtons = [UIButton]()
 
@@ -556,15 +558,25 @@ private extension FusumaViewController {
             titleLabel.text = NSLocalizedString(fusumaCameraRollTitle, comment: fusumaCameraRollTitle)
             highlightButton(libraryButton)
             view.bringSubviewToFront(photoLibraryViewerContainer)
+            videoShotContainer.isHidden = true
+            cameraView.isHidden = true
+            photoLibraryViewerContainer.isHidden = false
+
         case .camera:
             titleLabel.text = NSLocalizedString(fusumaCameraTitle, comment: fusumaCameraTitle)
             highlightButton(cameraButton)
             view.bringSubviewToFront(cameraShotContainer)
+            videoShotContainer.isHidden = true
+            cameraView.isHidden = false
+            photoLibraryViewerContainer.isHidden = true
             cameraView.startCamera()
         case .video:
             titleLabel.text = NSLocalizedString(fusumaVideoTitle, comment: fusumaVideoTitle)
             highlightButton(videoButton)
             view.bringSubviewToFront(videoShotContainer)
+            videoShotContainer.isHidden = false
+            cameraView.isHidden = true
+            photoLibraryViewerContainer.isHidden = true
             videoView.startCamera()
         }
 
