@@ -22,7 +22,11 @@ final class FSVideoCameraView: UIView {
     weak var delegate: FSVideoCameraViewDelegate? = nil
 
     var recordedOrientation = UIDeviceOrientation.portrait
-    
+
+    var timerBar: Timer?
+    var viewTimer = UIView()
+    var recordingStart: Date?
+
     var session: AVCaptureSession?
     var device: AVCaptureDevice?
     var videoInput: AVCaptureDeviceInput?
@@ -34,11 +38,61 @@ final class FSVideoCameraView: UIView {
     var videoStartImage: UIImage?
     var videoStopImage: UIImage?
 
+    var lp = UIColor(red:0.35, green:0.32, blue:0.64, alpha:1.0)  // light purple aka UIColor(netHex: 0x5951a2)
+    var red = UIColor(red:0.58, green:0.11, blue:0.12, alpha:1.0) // standard lagu red
+
     private var zoomFactor: CGFloat = 1.0
     private var isRecording = false
 
     static func instance() -> FSVideoCameraView {
         return UINib(nibName: "FSVideoCameraView", bundle: Bundle(for: self.classForCoder())).instantiate(withOwner: self, options: nil)[0] as! FSVideoCameraView
+    }
+
+    func renderStartingTimerBar() {
+        viewTimer.backgroundColor = red
+        if viewTimer.superview == nil {
+            self.addSubview(viewTimer)
+            viewTimer.frame = CGRect(x: 0, y: self.previewViewContainer.frame.maxY, width: 1, height: 12)
+        }
+    }
+
+    func startRunningBar() {
+        recordingStart = Date()
+        self.timerBar = Timer.scheduledTimer(timeInterval: 0.016666667, target: self, selector: #selector(barTimerTick), userInfo: nil, repeats: true)
+    }
+
+    @objc func barTimerTick() {
+        let time_delta:TimeInterval = Date().timeIntervalSince(recordingStart!)
+        if time_delta > 1.0 {
+            viewTimer.backgroundColor = lp
+        } else {
+            viewTimer.backgroundColor = red
+        }
+        let per = CGFloat(time_delta / 10.0)
+        self.moveTimerBarToPercentState(f: per)
+    }
+
+    func moveTimerBarToPercentState(f: CGFloat) {
+
+        let width = max(UIScreen.main.bounds.width * f, 1.0)
+
+        if viewTimer.superview != nil {
+
+            viewTimer.frame = CGRect(x: 0, y: self.previewViewContainer.frame.maxY, width: width, height: 12)
+
+        }
+
+    }
+
+    func pauseTimerBar() {
+        timerBar?.invalidate()
+        timerBar = nil
+    }
+
+    func resetTimerBar() {
+        timerBar?.invalidate()
+        timerBar = nil
+        moveTimerBarToPercentState(f: 0.0)
     }
 
     func initialize() {
@@ -99,7 +153,7 @@ final class FSVideoCameraView: UIView {
 
             let videoLayer = AVCaptureVideoPreviewLayer(session: session)
             videoLayer.frame = self.previewViewContainer.bounds
-            videoLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
+            videoLayer.videoGravity = AVLayerVideoGravity.resizeAspect
 
             previewViewContainer.layer.addSublayer(videoLayer)
 
@@ -133,6 +187,7 @@ final class FSVideoCameraView: UIView {
 
         let pinchGestureRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchToZoom))
         previewViewContainer.addGestureRecognizer(pinchGestureRecognizer)
+
     }
 
     deinit {
@@ -272,12 +327,14 @@ extension AVAsset {
 }
 
 extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
-    
-    
+
     func fileOutput(_ captureOutput: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         print("started recording to: \(fileURL)")
         recordedOrientation = UIDevice.current.orientation
+        self.renderStartingTimerBar()
+        self.startRunningBar()
     }
+
 
     func _getDataFor(_ item: AVPlayerItem, completion: @escaping (URL?) -> ()) {
 
@@ -374,8 +431,11 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
         let item = AVPlayerItem(asset: asset)
 
 
+        self.pauseTimerBar()
+
         if asset.duration.seconds < 1.0 {
             // this video is too short
+            self.resetTimerBar()
 //            Drop.down("Video was too short. Please try again", state: .error)
             self.delegate?.videoFinished(withFileURL: URL(fileURLWithPath: "N/A"))
             return
@@ -391,6 +451,7 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
                 if let u = url {
                     // alert delegate we finished the conversion
                     self.delegate?.videoFinished(withFileURL: u)
+                    self.resetTimerBar()
                 }
             }
 
@@ -502,3 +563,39 @@ fileprivate extension FSVideoCameraView {
         }
     }
 }
+
+
+extension UIView {
+
+    func _fusuma_anchor(_ top: NSLayoutYAxisAnchor?, left: NSLayoutXAxisAnchor?, bottom: NSLayoutYAxisAnchor?, right: NSLayoutXAxisAnchor?, paddingTop: CGFloat, paddingLeft: CGFloat, paddingBottom: CGFloat, paddingRight: CGFloat, width: CGFloat, height: CGFloat) {
+
+        translatesAutoresizingMaskIntoConstraints = false
+
+        if let top = top {
+            self.topAnchor.constraint(equalTo: top, constant: paddingTop).isActive = true
+        }
+
+        if let left = left {
+            self.leftAnchor.constraint(equalTo: left, constant: paddingLeft).isActive = true
+        }
+
+        if let bottom = bottom {
+            self.bottomAnchor.constraint(equalTo: bottom, constant: -paddingBottom).isActive = true
+        }
+
+        if let right = right {
+            self.rightAnchor.constraint(equalTo: right, constant: -paddingRight).isActive = true
+        }
+
+        if width != 0 {
+            self.widthAnchor.constraint(equalToConstant: width).isActive = true
+        }
+
+        if height != 0 {
+            self.heightAnchor.constraint(equalToConstant: height).isActive = true
+        }
+
+    }
+
+}
+
