@@ -280,6 +280,11 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
             selectedAssets.removeAll()
         }
 
+        if let prevSelection = selectedRows[indexPath.row] {
+            self.removeDataAtIndexPath(indexPath)
+            return
+        }
+
         var asset: PHAsset?
 
         // if the photoselection limit exists && if adding another image won't break the photoselectionlimit
@@ -432,9 +437,6 @@ private extension FSAlbumView {
     func changeImage(_ asset: PHAsset) {
         imageCropView.image = nil
         phAsset = asset
-
-        DispatchQueue.global(qos: .default).async(execute: {
-            self.imageManager?.requestImage(for: asset,
 
 
         let options = PHImageRequestOptions()
