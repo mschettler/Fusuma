@@ -41,6 +41,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
 
     var selectedImages: [UIImage] = []
     var selectedAssets: [PHAsset] = []
+    var selectedRows: [Int: Int] = [:] // row: number
 
     // Variables for calculating the position
     enum Direction {
@@ -235,6 +236,20 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         cell.tag = currentTag
 
         let asset = images[(indexPath as NSIndexPath).item]
+        if let selectionNumber = self.selectedRows[indexPath.row] {
+            if !allowMultipleSelection {
+                cell.counterLabel?.text = "✔️"
+            } else {
+                cell.counterLabel?.text = "\(selectionNumber)"
+            }
+            cell.selectedLayer.frame = self.bounds
+            cell.layer.addSublayer(cell.selectedLayer)
+            cell.counterLabel?.isHidden = false
+        } else {
+            cell.counterLabel?.text = "0"
+            cell.selectedLayer.removeFromSuperlayer()
+            cell.counterLabel?.isHidden = true
+        }
 
         imageManager?.requestImage(for: asset,
                                         targetSize: cellSize,
@@ -260,18 +275,32 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         let width = (collectionView.frame.width - 3) / 4
         return CGSize(width: width, height: width)
     }
+    
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if !allowMultipleSelection {
+            // reset the collection of selected data
             selectedImages.removeAll()
             selectedAssets.removeAll()
         }
+        
+        // detect de-selection
+        if selectedRows[indexPath.row] != nil {
+            self.removeDataAtIndexPath(indexPath)
+            return
+        }
+        
+        var asset: PHAsset?
 
+        // if the photoselection limit exists && if adding another image won't break the photoselectionlimit
         if photoSelectionLimit > 0 && selectedImages.count + 1 <= photoSelectionLimit {
+            // this toggles the big preview imageview
+            asset = images[(indexPath as NSIndexPath).row]
+            changeImage(asset!)
             changeImage(images[(indexPath as NSIndexPath).row])
 
             imageCropView.changeScrollable(true)
-
+            
             imageCropViewConstraintTop.constant = imageCropViewOriginalConstraintTop
             collectionViewConstraintHeight.constant = self.frame.height - imageCropViewOriginalConstraintTop - imageCropViewContainer.frame.height
 
@@ -282,30 +311,58 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
                            completion: nil)
 
             dragDirection = Direction.up
+            
+            // in a valid condition to submit data, because content was just added
             delegate?.albumShouldEnableDoneButton(isEnabled: true)
+            
             collectionView.scrollToItem(at: indexPath, at: .top, animated: true)
         } else {
             delegate?.albumbSelectionLimitReached()
             collectionView.deselectItem(at: indexPath, animated: true)
         }
+        
+        // set the badge for the cell
+        if let asset = asset {
+            if let selectedAssetIndex = self.selectedAssets.firstIndex(of: asset) {
+                if !allowMultipleSelection {
+                    // reset for single choice
+                    self.selectedRows = [indexPath.row: 1]
+                } else {
+                    self.selectedRows[indexPath.row] = selectedAssetIndex + 1 // the badge counter, effectively
+                }
+            }
+        }
+        
+        self.collectionView.reloadData()
     }
-
-    func collectionView(_ collectionView: UICollectionView, shouldDeselectItemAt indexPath: IndexPath) -> Bool {
+    
+    func removeDataAtIndexPath(_ indexPath: IndexPath) {
         let asset = images[(indexPath as NSIndexPath).item]
         let selectedAsset = selectedAssets.enumerated().filter ({ $1 == asset }).first
-
+        
         if let selected = selectedAsset {
             selectedImages.remove(at: selected.offset)
             selectedAssets.remove(at: selected.offset)
         }
-
+        
         if selectedImages.count > 0 {
             delegate?.albumShouldEnableDoneButton(isEnabled: true)
         } else {
             delegate?.albumShouldEnableDoneButton(isEnabled: false)
         }
-
-        return true
+        
+        // remove badge
+        let numToRemove = selectedRows[indexPath.row]!
+        self.selectedRows.removeValue(forKey: indexPath.row)
+        
+        // decrement the nums that were larger
+        for (row, selectionOrder) in selectedRows {
+            if (selectionOrder > numToRemove) {
+                self.selectedRows[row] = self.selectedRows[row]! - 1
+            }
+        }
+        
+        self.collectionView.reloadData()
     }
 
 
@@ -391,31 +448,27 @@ private extension FSAlbumView {
         imageCropView.image = nil
         phAsset = asset
 
-        DispatchQueue.global(qos: .default).async(execute: {
-            let options = PHImageRequestOptions()
-            options.isNetworkAccessAllowed = true
 
-            self.imageManager?.requestImage(for: asset,
-                                            targetSize: CGSize(width: asset.pixelWidth, height: asset.pixelHeight),
-                                            contentMode: .aspectFill,
-                                            options: options) {
-                                                result, info in
+        let options = PHImageRequestOptions()
+        options.isSynchronous = true
+        options.isNetworkAccessAllowed = true
 
-                                                DispatchQueue.main.async(execute: {
+        self.imageManager?.requestImage(for: asset,
+                                        targetSize: CGSize(width: asset.pixelWidth, height: asset.pixelHeight),
+                                        contentMode: .aspectFill,
+                                        options: options) {
+                                            result, info in
+                                            self.imageCropView.imageSize = CGSize(width: asset.pixelWidth,
+                                                                                  height: asset.pixelHeight)
+                                            self.imageCropView.image = result
 
-                                                    self.imageCropView.imageSize = CGSize(width: asset.pixelWidth,
-                                                                                          height: asset.pixelHeight)
-                                                    self.imageCropView.image = result
-
-                                                    if let result = result,
-                                                        !self.selectedAssets.contains(asset) {
-
-                                                        self.selectedAssets.append(asset)
-                                                        self.selectedImages.append(result)
-                                                    }
-                                                })
-            }
-        })
+                                            if let result = result,
+                                                !self.selectedAssets.contains(asset) {
+                                                    self.selectedAssets.append(asset)
+                                                    self.selectedImages.append(result)
+                                                print(self.selectedImages)
+                                                }
+        }
     }
 
     func updateImageViewOnly(_ asset: PHAsset) {
@@ -423,6 +476,7 @@ private extension FSAlbumView {
 
         DispatchQueue.global(qos: .default).async(execute: {
             let options = PHImageRequestOptions()
+            options.isSynchronous = true
             options.isNetworkAccessAllowed = true
 
             self.imageManager?.requestImage(for: asset, targetSize: CGSize(width: asset.pixelWidth, height: asset.pixelHeight), contentMode: .aspectFill, options: options) { result, info in

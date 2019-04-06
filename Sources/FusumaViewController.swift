@@ -178,23 +178,15 @@ public struct ImageMetadata {
         closeButton.tintColor   = fusumaTintColor
         doneButton.tintColor    = fusumaTintColor
 
-        let bundle     = Bundle(for: self.classForCoder)
-        let checkImage = fusumaCheckImage != nil ? fusumaCheckImage : UIImage(named: "ic_check", in: bundle, compatibleWith: nil)
-        doneButton.setImage(checkImage?.withRenderingMode(.alwaysTemplate), for: .normal)
-        doneButton.setImage(checkImage?.withRenderingMode(.alwaysTemplate), for: .selected)
-        doneButton.setImage(checkImage?.withRenderingMode(.alwaysTemplate), for: .highlighted)
+        let bundle  = Bundle(for: self.classForCoder)
 
-
-        var imageForTopLeftButton = fusumaCloseImage != nil ? fusumaCloseImage : UIImage(named: "ic_close", in: bundle, compatibleWith: nil)
+        closeButton.setTitleColor(fusumaTintColor, for: .normal)
+        doneButton.setTitleColor(fusumaTintColor, for: .normal)
+        
         if useSkipButtonInsteadOfCloseButton {
-            imageForTopLeftButton = UIImage(named: "ic_skip", in: bundle, compatibleWith: nil)
+            closeButton.setTitle("Text Post", for: .normal)
             closeButton.addTarget(self, action: #selector(skipButtonPressed), for: .touchUpInside)
         }
-
-        closeButton.setImage(imageForTopLeftButton?.withRenderingMode(.alwaysTemplate), for: .normal)
-        closeButton.setImage(imageForTopLeftButton?.withRenderingMode(.alwaysTemplate), for: .selected)
-        closeButton.setImage(imageForTopLeftButton?.withRenderingMode(.alwaysTemplate), for: .highlighted)
-
 
         photoLibraryViewerContainer.addSubview(albumView)
         cameraShotContainer.addSubview(cameraView)
@@ -414,21 +406,22 @@ public struct ImageMetadata {
     private func requestImage(with asset: PHAsset, cropRect: CGRect, completion: @escaping (PHAsset, UIImage) -> Void) {
         DispatchQueue.global(qos: .default).async(execute: {
             let options = PHImageRequestOptions()
+            options.isSynchronous = true
             options.deliveryMode = .highQualityFormat
             options.isNetworkAccessAllowed = true
             options.normalizedCropRect = cropRect
             options.resizeMode = .exact
-
+            
             let targetWidth  = floor(CGFloat(asset.pixelWidth) * cropRect.width)
             let targetHeight = floor(CGFloat(asset.pixelHeight) * cropRect.height)
             let dimensionW   = max(min(targetHeight, targetWidth), 1024 * UIScreen.main.scale)
             let dimensionH   = dimensionW * self.getCropHeightRatio()
-
+            
             let targetSize   = CGSize(width: dimensionW, height: dimensionH)
-
+            
             PHImageManager.default().requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: options) { result, info in
                 guard let result = result else { return }
-
+                
                 DispatchQueue.main.async(execute: {
                     completion(asset, result)
                 })
@@ -438,7 +431,9 @@ public struct ImageMetadata {
 
     private func fusumaDidFinishInMultipleMode() {
         guard let view = albumView.imageCropView else { return }
-
+        self.dismiss(animated: true) {
+            self.delegate?.fusumaMultipleImageSelected(self.albumView.selectedImages, source: self.mode)
+        }
         let normalizedX = view.contentOffset.x / view.contentSize.width
         let normalizedY = view.contentOffset.y / view.contentSize.height
         let normalizedWidth  = view.frame.width / view.contentSize.width
@@ -488,6 +483,12 @@ extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVid
 
     public func albumShouldEnableDoneButton(isEnabled: Bool) {
         doneButton.isEnabled = isEnabled
+        
+        if isEnabled {
+            doneButton.isHidden = false
+        } else {
+            doneButton.isHidden = true
+        }
     }
 
     public func getCropHeightRatio() -> CGFloat {
@@ -552,7 +553,9 @@ private extension FusumaViewController {
 
         dishighlightButtons()
         updateDoneButtonVisibility()
-
+        
+        titleLabel.font = UIFont(name: "HelveticaNeue-CondensedBold", size: 23)
+        
         switch mode {
         case .library:
             titleLabel.text = NSLocalizedString(fusumaCameraRollTitle, comment: fusumaCameraRollTitle)
@@ -591,7 +594,7 @@ private extension FusumaViewController {
 
         switch mode {
         case .library:
-            doneButton.isHidden = false
+            doneButton.isHidden = true
         default:
             doneButton.isHidden = true
         }
