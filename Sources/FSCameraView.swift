@@ -81,7 +81,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
                 }
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+        //DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
 
             if let device = self.device, let _videoInput = try? AVCaptureDeviceInput(device: device) {
                 self.videoInput = _videoInput
@@ -111,7 +111,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
             self.flashConfiguration()
             self.startCamera()
 
-        }
+        //}
 
         NotificationCenter.default.addObserver(self, selector: #selector(FSCameraView.willEnterForegroundNotification(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
 
