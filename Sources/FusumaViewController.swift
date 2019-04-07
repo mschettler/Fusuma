@@ -351,12 +351,22 @@ public struct ImageMetadata {
     }
 
     @IBAction func photoButtonPressed(_ sender: UIButton) {
-        closeButton.isHidden = true
+        if availableModes.count == 3 {
+            closeButton.isHidden = true
+        } else {
+            // if we only have camera perms, we need to show close
+            closeButton.isHidden = false
+        }
         changeMode(FusumaMode.camera)
     }
 
     @IBAction func videoButtonPressed(_ sender: UIButton) {
-        closeButton.isHidden = true
+        if availableModes.count == 3 {
+            closeButton.isHidden = true
+        } else {
+            // if we only have camera perms, we need to show close
+            closeButton.isHidden = false
+        }
         changeMode(FusumaMode.video)
     }
 
