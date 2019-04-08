@@ -235,6 +235,15 @@ final class FSVideoCameraView: UIView {
                 if device.position == position {
                     videoInput = try AVCaptureDeviceInput(device: device)
                     session.addInput(videoInput!)
+                    // add audio conditionally
+                    if let audioDevice = AVCaptureDevice.default(for: .audio) {
+                        if let audioInput = try? AVCaptureDeviceInput(device: audioDevice) {
+                            if session.canAddInput5(audioInput) {
+                                session.addInput(audioInput)
+                            }
+                        }
+                    }
+
                 }
             }
 
