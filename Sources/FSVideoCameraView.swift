@@ -377,8 +377,13 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
             } else if recordedOrientation == .landscapeRight {
                 let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
                 compositionVideoTrack!.preferredTransform = rotationTransform;
-
             }
+            
+            // if we are on the front camera, rotate 180
+            if videoInput?.device.position == .front {
+                compositionVideoTrack!.preferredTransform = compositionVideoTrack!.preferredTransform.rotated(by: 180.0)
+            }
+            
         }
         
         if let sourceAudioTrack = item.asset.tracks(withMediaType: AVMediaType.audio).first {
