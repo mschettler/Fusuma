@@ -380,8 +380,38 @@ extension FSVideoCameraView: AVCaptureFileOutputRecordingDelegate {
             }
             
             // if we are on the front camera, rotate 180
-            if videoInput?.device.position == .front {
-                compositionVideoTrack!.preferredTransform = compositionVideoTrack!.preferredTransform.rotated(by: 180.0)
+
+            if videoInput?.device.position == .back {
+                // rotate as necessary
+                if recordedOrientation == .portrait || recordedOrientation == .portraitUpsideDown {
+                    let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2));
+                    compositionVideoTrack!.preferredTransform = rotationTransform;
+                } else if recordedOrientation == .landscapeRight {
+                    let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
+                    compositionVideoTrack!.preferredTransform = rotationTransform;
+                }
+            } else if videoInput?.device.position == .front {
+//                compositionVideoTrack!.preferredTransform = compositionVideoTrack!.preferredTransform.rotated(by: 180.0)
+
+
+                // rotate as necessary
+                if recordedOrientation == .portrait {
+                    let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi / 2.0));
+                    compositionVideoTrack!.preferredTransform = rotationTransform;
+                } else if recordedOrientation == .portraitUpsideDown {
+                    let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(3 * Double.pi / 2.0) );
+                    compositionVideoTrack!.preferredTransform = rotationTransform;
+                } else if recordedOrientation == .landscapeLeft {
+                    let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(Double.pi));
+                    compositionVideoTrack!.preferredTransform = rotationTransform;
+                } else if recordedOrientation == .landscapeRight {
+
+
+                    // was pi, needs 180
+                    let rotationTransform = CGAffineTransform(rotationAngle: CGFloat(2*Double.pi));
+                    compositionVideoTrack!.preferredTransform = rotationTransform;
+                }
+
             }
             
         }
