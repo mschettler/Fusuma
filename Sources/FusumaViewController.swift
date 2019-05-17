@@ -175,13 +175,22 @@ public struct ImageMetadata {
         libraryButton.tintColor = fusumaTintColor
         cameraButton.tintColor  = fusumaTintColor
         videoButton.tintColor   = fusumaTintColor
+
+        libraryButton.titleLabel?.font = UIFont(name: "Helvetica", size: 20)
+        cameraButton.titleLabel?.font = UIFont(name: "Helvetica", size: 20)
+        videoButton.titleLabel?.font = UIFont(name: "Helvetica", size: 20)
+
+
         closeButton.tintColor   = fusumaTintColor
         doneButton.tintColor    = fusumaTintColor
 
+        doneButton.titleLabel?.font = UIFont(name: "Helvetica", size: 18)
+        closeButton.titleLabel?.font = UIFont(name: "Helvetica", size: 18)
+
         let bundle  = Bundle(for: self.classForCoder)
 
-        closeButton.setTitleColor(fusumaTintColor, for: .normal)
-        doneButton.setTitleColor(fusumaTintColor, for: .normal)
+        closeButton.setTitleColor(UIColor.white, for: .normal)
+        doneButton.setTitleColor(UIColor.white, for: .normal)
 
         if useSkipButtonInsteadOfCloseButton {
             closeButton.setTitle("Text Post", for: .normal)
@@ -192,7 +201,7 @@ public struct ImageMetadata {
         cameraShotContainer.addSubview(cameraView)
         videoShotContainer.addSubview(videoView)
 
-        titleLabel.textColor = fusumaTintColor
+        titleLabel.textColor = UIColor.white
         titleLabel.font      = fusumaTitleFont
 
         if availableModes.count == 0 || availableModes.count >= 4 {
@@ -567,7 +576,7 @@ private extension FusumaViewController {
         dishighlightButtons()
         updateDoneButtonVisibility()
 
-        titleLabel.font = UIFont(name: "HelveticaNeue-CondensedBold", size: 23)
+        titleLabel.font = UIFont(name: "HelveticaNeue", size: 23)
 
         switch mode {
         case .library:
